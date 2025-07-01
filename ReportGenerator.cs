@@ -1,7 +1,18 @@
+using Microsoft.Extensions.Logging;
+
 public class ReportGenerator
 {
+    private readonly ILogger<ReportGenerator> _logger;
+
+    public ReportGenerator(ILogger<ReportGenerator> logger)
+    {
+        _logger = logger;
+    }
+
     public void GenerateDetailedReport(List<AssemblyVersionMismatch> mismatches, List<AssemblyInfo> allAssemblies, string reportPath)
     {
+        _logger.LogInformation("Generating detailed report to {ReportPath}", reportPath);
+        
         using var writer = new StreamWriter(reportPath);
         
         writer.WriteLine("=== .NET SDK VERSION MISMATCH ANALYSIS REPORT ===");

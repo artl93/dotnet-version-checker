@@ -6,10 +6,10 @@ using SharpCompress.Common;
 
 public class ArchiveExtractionService
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<ArchiveExtractionService> _logger;
     private readonly SemaphoreSlim _extractionSemaphore = new(Environment.ProcessorCount);
 
-    public ArchiveExtractionService(ILogger logger)
+    public ArchiveExtractionService(ILogger<ArchiveExtractionService> logger)
     {
         _logger = logger;
     }

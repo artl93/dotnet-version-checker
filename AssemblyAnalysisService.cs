@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 
 public class AssemblyAnalysisService
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<AssemblyAnalysisService> _logger;
 
-    public AssemblyAnalysisService(ILogger logger)
+    public AssemblyAnalysisService(ILogger<AssemblyAnalysisService> logger)
     {
         _logger = logger;
     }

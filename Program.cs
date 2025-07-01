@@ -1,62 +1,56 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
-using System.Runtime.InteropServices;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SharpCompress.Archives;
-using SharpCompress.Common;
-using System.IO.Compression;
-using System.Reflection;
+using Microsoft.Extensions.Options;
 
-// Top-level program logic
+// Check for help before setting up DI
 if (args.Contains("--help") || args.Contains("-h"))
 {
     ShowHelp();
     return;
 }
 
-var assetsPath = Path.Combine(Directory.GetCurrentDirectory(), "assets");
-var tempPath = Path.Combine(Path.GetTempPath(), "dotnet-version-analysis", Guid.NewGuid().ToString());
-var testMode = args.Contains("--test") || args.Contains("-t");
-var maxArchives = testMode ? 3 : int.MaxValue;
-var logger = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Information)).CreateLogger("VersionAnalyzer");
+// Configure and build host with dependency injection
+var builder = Host.CreateApplicationBuilder(args);
 
+// Configure services
+builder.Services.Configure<AnalysisOptions>(options =>
+{
+    options.AssetsPath = Path.Combine(Directory.GetCurrentDirectory(), "assets");
+    options.TempPath = Path.Combine(Path.GetTempPath(), "dotnet-version-analysis", Guid.NewGuid().ToString());
+    options.TestMode = args.Contains("--test") || args.Contains("-t");
+    options.MaxArchives = options.TestMode ? 3 : int.MaxValue;
+    options.KeepTempFiles = args.Contains("--keep-temp") || args.Contains("-k");
+});
+
+// Register services as singletons
+builder.Services.AddSingleton<ArchiveExtractionService>();
+builder.Services.AddSingleton<AssemblyAnalysisService>();
+builder.Services.AddSingleton<VersionAnalysisService>();
+builder.Services.AddSingleton<ReportGenerator>();
+builder.Services.AddSingleton<DotNetVersionAnalyzer>();
+
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+// Register the main application service
+builder.Services.AddSingleton<VersionAnalyzerApp>();
+
+var host = builder.Build();
+
+// Run the application
 try
 {
-    logger.LogInformation("Starting version analysis...");
-    if (testMode)
-        logger.LogInformation("🧪 Running in TEST MODE - processing only first {MaxArchives} archives", maxArchives);
-    logger.LogInformation("Assets path: {AssetsPath}", assetsPath);
-    logger.LogInformation("Temp extraction path: {TempPath}", tempPath);
-
-    Directory.CreateDirectory(tempPath);
-    var analyzer = new DotNetVersionAnalyzer(logger, tempPath);
-    await analyzer.AnalyzeAsync(assetsPath, maxArchives);
+    var app = host.Services.GetRequiredService<VersionAnalyzerApp>();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
-    logger.LogError(ex, "Analysis failed");
-}
-finally
-{
-    var skipCleanup = args.Contains("--keep-temp") || args.Contains("-k");
-    if (Directory.Exists(tempPath) && !skipCleanup)
-    {
-        try
-        {
-            Directory.Delete(tempPath, true);
-            logger.LogInformation("Cleaned up temporary directory");
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to cleanup temporary directory: {TempPath}", tempPath);
-        }
-    }
-    else if (skipCleanup)
-    {
-        logger.LogInformation("⚠️ Temporary files kept at: {TempPath}", tempPath);
-    }
+    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "Application failed");
+    Environment.ExitCode = 1;
 }
 
 static void ShowHelp()

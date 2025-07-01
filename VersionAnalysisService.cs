@@ -2,11 +2,13 @@ using Microsoft.Extensions.Logging;
 
 public class VersionAnalysisService
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<VersionAnalysisService> _logger;
+    private readonly ReportGenerator _reportGenerator;
 
-    public VersionAnalysisService(ILogger logger)
+    public VersionAnalysisService(ILogger<VersionAnalysisService> logger, ReportGenerator reportGenerator)
     {
         _logger = logger;
+        _reportGenerator = reportGenerator;
     }
 
     public List<AssemblyVersionMismatch> FindVersionMismatches(List<AssemblyInfo> allAssemblies)
@@ -117,9 +119,8 @@ public class VersionAnalysisService
         var reportPath = Path.Combine(Directory.GetCurrentDirectory(), "version-mismatch-report.txt");
         var csvReportPath = Path.Combine(Directory.GetCurrentDirectory(), "version-mismatch-report.csv");
         
-        var reportGenerator = new ReportGenerator();
-        reportGenerator.GenerateDetailedReport(mismatches, allAssemblies, reportPath);
-        reportGenerator.GenerateCsvReport(mismatches, csvReportPath);
+        _reportGenerator.GenerateDetailedReport(mismatches, allAssemblies, reportPath);
+        _reportGenerator.GenerateCsvReport(mismatches, csvReportPath);
         
         _logger.LogInformation("📄 Detailed report saved to: {ReportPath}", reportPath);
         _logger.LogInformation("📊 CSV report saved to: {CsvReportPath}", csvReportPath);

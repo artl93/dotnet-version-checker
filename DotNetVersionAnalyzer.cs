@@ -1,20 +1,26 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 public class DotNetVersionAnalyzer
 {
-    private readonly ILogger _logger;
-    private readonly string _tempPath;
+    private readonly ILogger<DotNetVersionAnalyzer> _logger;
+    private readonly AnalysisOptions _options;
     private readonly ArchiveExtractionService _extractionService;
     private readonly AssemblyAnalysisService _assemblyService;
     private readonly VersionAnalysisService _versionService;
 
-    public DotNetVersionAnalyzer(ILogger logger, string tempPath)
+    public DotNetVersionAnalyzer(
+        ILogger<DotNetVersionAnalyzer> logger,
+        IOptions<AnalysisOptions> options,
+        ArchiveExtractionService extractionService,
+        AssemblyAnalysisService assemblyService,
+        VersionAnalysisService versionService)
     {
         _logger = logger;
-        _tempPath = tempPath;
-        _extractionService = new ArchiveExtractionService(logger);
-        _assemblyService = new AssemblyAnalysisService(logger);
-        _versionService = new VersionAnalysisService(logger);
+        _options = options.Value;
+        _extractionService = extractionService;
+        _assemblyService = assemblyService;
+        _versionService = versionService;
     }
 
     public async Task AnalyzeAsync(string assetsPath, int maxArchives = int.MaxValue)
@@ -30,13 +36,13 @@ public class DotNetVersionAnalyzer
         var startTime = DateTime.Now;
 
         // Step 1: Extract all archives in parallel
-        await _extractionService.ExtractArchivesAsync(archiveFiles, _tempPath);
+        await _extractionService.ExtractArchivesAsync(archiveFiles, _options.TempPath);
         var extractionTime = DateTime.Now - startTime;
         _logger.LogInformation("⏱️ Extraction completed in {Duration}", extractionTime);
 
         // Step 2: Analyze all extracted assemblies
         var analysisStart = DateTime.Now;
-        var allAssemblies = await _assemblyService.AnalyzeAssembliesAsync(_tempPath);
+        var allAssemblies = await _assemblyService.AnalyzeAssembliesAsync(_options.TempPath);
         var analysisTime = DateTime.Now - analysisStart;
         _logger.LogInformation("⏱️ Assembly analysis completed in {Duration}", analysisTime);
 
